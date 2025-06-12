@@ -1,7 +1,6 @@
 <?php
-// create-project.php
+// create-project.php (Versi Depresiasi dari Tahun Investasi)
 
-// 1. MULAI SESSION & CEK AUTENTIKASI
 session_start();
 if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
     header("location: login.php");
@@ -9,102 +8,84 @@ if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
 }
 $user_id = $_SESSION['user_id'];
 
-// 2. KONEKSI DATABASE
 require_once "config.php";
 
-// Definisikan variabel dan inisialisasi dengan string kosong
-$name = $site_manager = $invest_capital = $invest_noncapital = $tax = $depreciation = "";
-$name_err = $site_manager_err = $invest_capital_err = $invest_noncapital_err = $tax_err = $depreciation_err = "";
+$name = $site_manager = $invest_capital = $invest_noncapital = $tax = $investment_years_input = "";
 $error_message = "";
+$validation_errors = [];
 
-// 3. LOGIKA TAMBAH PROYEK
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
-    // Validasi Nama Proyek
-    if (empty(trim($_POST['name']))) {
-        $name_err = "Nama proyek tidak boleh kosong.";
-    } else {
-        $name = trim($_POST['name']);
-    }
+    // Ambil data dari form
+    $name = trim($_POST['name']);
+    $site_manager = trim($_POST['site_manager']);
+    $invest_capital = trim($_POST['invest_capital']);
+    $invest_noncapital = trim($_POST['invest_noncapital']);
+    $tax = trim($_POST['tax']);
+    $investment_years_input = trim($_POST['investment_years']); // Input baru: Jumlah Tahun Investasi
 
-    // Validasi Site Manager
-    if (empty(trim($_POST['site_manager']))) {
-        $site_manager_err = "Nama site manager tidak boleh kosong.";
-    } else {
-        $site_manager = trim($_POST['site_manager']);
+    // Validasi per field
+    if (empty($name)) {
+        $validation_errors['name'] = "Nama proyek wajib diisi.";
     }
-
-    // Validasi Investasi Modal
-    if (empty(trim($_POST['invest_capital']))) {
-        $invest_capital_err = "Investasi modal tidak boleh kosong.";
-    } elseif (!ctype_digit(trim($_POST['invest_capital']))) {
-        $invest_capital_err = "Mohon masukkan angka yang valid.";
-    } else {
-        $invest_capital = trim($_POST['invest_capital']);
+    if (empty($site_manager)) {
+        $validation_errors['site_manager'] = "Nama manajer wajib diisi.";
     }
-
-    // Validasi Investasi Non-Modal
-    if (empty(trim($_POST['invest_noncapital']))) {
-        $invest_noncapital_err = "Investasi non-modal tidak boleh kosong.";
-    } elseif (!ctype_digit(trim($_POST['invest_noncapital']))) {
-        $invest_noncapital_err = "Mohon masukkan angka yang valid.";
-    } else {
-        $invest_noncapital = trim($_POST['invest_noncapital']);
+    if (empty($invest_capital) || !is_numeric($invest_capital)) {
+        $validation_errors['invest_capital'] = "Investasi modal harus angka.";
     }
-
-    // Validasi Pajak
-    if (empty(trim($_POST['tax']))) {
-        $tax_err = "Pajak tidak boleh kosong.";
-    } elseif (!is_numeric(trim($_POST['tax']))) {
-        $tax_err = "Mohon masukkan angka yang valid.";
-    } else {
-        $tax = trim($_POST['tax']);
+    if (empty($invest_noncapital) || !is_numeric($invest_noncapital)) {
+        $validation_errors['invest_noncapital'] = "Investasi non-modal harus angka.";
     }
-
-    // Validasi Depresiasi
-    if (empty(trim($_POST['depreciation']))) {
-        $depreciation_err = "Depresiasi tidak boleh kosong.";
-    } elseif (!is_numeric(trim($_POST['depreciation']))) {
-        $depreciation_err = "Mohon masukkan angka yang valid.";
-    } else {
-        $depreciation = trim($_POST['depreciation']);
+    if (empty($tax) || !is_numeric($tax)) {
+        $validation_errors['tax'] = "Pajak harus angka.";
+    }
+    if (empty($investment_years_input) || !ctype_digit($investment_years_input)) {
+        $validation_errors['investment_years'] = "Jumlah tahun harus angka bulat.";
     }
 
 
-    // Periksa jika tidak ada error validasi
-    if (empty($name_err) && empty($site_manager_err) && empty($invest_capital_err) && empty($invest_noncapital_err) && empty($tax_err) && empty($depreciation_err)) {
+    // Lanjutkan jika tidak ada error validasi
+    if (empty($validation_errors)) {
+        // --- PERHITUNGAN DEPRESIASI BARU SEBELUM INSERT ---
+        // Nilai depresiasi tahunan (dalam USD) dihitung di sini
+        $calculated_depreciation_usd = ($investment_years_input > 0) ? round($invest_capital / $investment_years_input) : 0;
 
-        // 4. QUERY UNTUK MENYIMPAN PROYEK BARU
-        $sql = "INSERT INTO projects (name, site_manager, invest_capital, invest_noncapital, tax, depreciation, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+        $mysqli->begin_transaction();
+        try {
+            // Simpan nilai depresiasi yang sudah dihitung ke kolom 'depreciation' di database
+            $sql_project = "INSERT INTO projects (name, site_manager, invest_capital, invest_noncapital, tax, depreciation, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
 
-        if ($stmt = $mysqli->prepare($sql)) {
-            // Bind parameter
-            $stmt->bind_param("ssiiiii", $param_name, $param_sm, $param_ic, $param_inc, $param_tax, $param_dep, $param_uid);
+            if ($stmt_project = $mysqli->prepare($sql_project)) {
+                // Tipe data disesuaikan: 7 variabel (ssiiddi) dengan 7 placeholder (?)
+                $stmt_project->bind_param("ssiiddi", $name, $site_manager, $invest_capital, $invest_noncapital, $tax, $calculated_depreciation_usd, $user_id);
+                $stmt_project->execute();
 
-            // Set parameter
-            $param_name = $name;
-            $param_sm = $site_manager;
-            $param_ic = $invest_capital;
-            $param_inc = $invest_noncapital;
-            $param_tax = $tax;
-            $param_dep = $depreciation;
-            $param_uid = $user_id;
+                $new_project_id = $mysqli->insert_id;
 
-            // Eksekusi statement
-            if ($stmt->execute()) {
-                // Jika berhasil, redirect ke halaman home
+                // Buat entri Tahun 0
+                $year_0 = 0;
+                $initial_investment = - ($invest_capital + $invest_noncapital);
+
+                // --- PERBAIKAN ---
+                // Query diubah untuk menyertakan semua kolom yang NOT NULL
+                $sql_cashflow_0 = "INSERT INTO cashflows (project_id, year, production, income, opex, taxable_income, net_cashflow, created_at, updated_at) VALUES (?, ?, 0, 0, 0, 0, ?, NOW(), NOW())";
+                $stmt_cashflow_0 = $mysqli->prepare($sql_cashflow_0);
+                // Bind parameter sesuai dengan placeholder di query
+                $stmt_cashflow_0->bind_param("iii", $new_project_id, $year_0, $initial_investment);
+                $stmt_cashflow_0->execute();
+
+                $mysqli->commit();
                 header("Location: home.php");
                 exit();
             } else {
-                $error_message = "Gagal membuat proyek. Silakan coba lagi.";
+                throw new Exception("Gagal menyiapkan statement: " . $mysqli->error);
             }
-
-            // Tutup statement
-            $stmt->close();
+        } catch (Exception $exception) {
+            $mysqli->rollback();
+            $error_message = "Gagal membuat proyek: " . $exception->getMessage();
         }
     }
-    // Tutup koneksi
-    $mysqli->close();
 }
 ?>
 <!DOCTYPE html>
@@ -113,102 +94,79 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buat Proyek Baru - Kalkulator Investasi Migas</title>
+    <title>Buat Proyek Baru</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-    </style>
 </head>
 
 <body class="bg-gray-50">
-
     <div class="flex h-screen">
-        <!-- Sidebar -->
         <aside class="w-64 bg-white shadow-md flex flex-col">
             <div class="p-6 text-center border-b">
                 <h2 class="text-xl font-bold text-blue-600">Kalkulator Migas</h2>
             </div>
-            <nav class="flex-1 p-4 space-y-2">
-                <a href="home.php" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                    <i class="fas fa-home mr-3"></i> Dashboard
-                </a>
-            </nav>
-            <div class="p-4 border-t">
-                <a href="logout.php" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                    <i class="fas fa-sign-out-alt mr-3"></i> Keluar
-                </a>
-            </div>
+            <nav class="flex-1 p-4 space-y-2"><a href="home.php" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"><i class="fas fa-home mr-3"></i> Dashboard</a></nav>
+            <div class="p-4 border-t"><a href="logout.php" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"><i class="fas fa-sign-out-alt mr-3"></i> Keluar</a></div>
         </aside>
 
-        <!-- Main Content -->
         <main class="flex-1 p-8 overflow-y-auto">
             <header class="mb-8">
-                <a href="home.php" class="text-blue-600 hover:text-blue-800 mb-4 inline-block"><i class="fas fa-arrow-left mr-2"></i>Kembali ke Dashboard</a>
+                <a href="home.php" class="text-blue-600 hover:text-blue-800 mb-4 inline-block"><i class="fas fa-arrow-left mr-2"></i>Kembali</a>
                 <h1 class="text-3xl font-bold text-gray-800">Buat Proyek Investasi Baru</h1>
-                <p class="text-gray-500">Isi detail di bawah ini untuk memulai analisis proyek baru.</p>
+                <p class="text-gray-500">Depresiasi tahunan (USD) akan dihitung otomatis dari (Investasi Modal / Jumlah Tahun Investasi).</p>
             </header>
 
             <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
-                <?php
-                if (!empty($error_message)) {
-                    echo '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6" role="alert">';
-                    echo '<span class="block sm:inline">' . $error_message . '</span>';
-                    echo '</div>';
-                }
-                ?>
+                <?php if (!empty($error_message)) {
+                    echo '<div class="bg-red-100 border-red-400 text-red-700 p-3 mb-6 rounded-lg">' . $error_message . '</div>';
+                } ?>
                 <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="POST" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="name" class="block text-sm font-medium text-gray-700">Nama Proyek</label>
-                            <input type="text" id="name" name="name" value="<?php echo $name; ?>" class="mt-1 w-full px-4 py-3 bg-gray-50 border <?php echo (!empty($name_err)) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-red-500 text-sm mt-1"><?php echo $name_err; ?></span>
+                            <input type="text" name="name" class="mt-1 w-full p-3 bg-gray-50 border rounded-lg <?php echo !empty($validation_errors['name']) ? 'border-red-500' : 'border-gray-300'; ?>" value="<?php echo htmlspecialchars($name); ?>">
+                            <span class="text-red-500 text-sm"><?php echo $validation_errors['name'] ?? ''; ?></span>
                         </div>
                         <div>
                             <label for="site_manager" class="block text-sm font-medium text-gray-700">Site Manager</label>
-                            <input type="text" id="site_manager" name="site_manager" value="<?php echo $site_manager; ?>" class="mt-1 w-full px-4 py-3 bg-gray-50 border <?php echo (!empty($site_manager_err)) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-red-500 text-sm mt-1"><?php echo $site_manager_err; ?></span>
+                            <input type="text" name="site_manager" class="mt-1 w-full p-3 bg-gray-50 border rounded-lg <?php echo !empty($validation_errors['site_manager']) ? 'border-red-500' : 'border-gray-300'; ?>" value="<?php echo htmlspecialchars($site_manager); ?>">
+                            <span class="text-red-500 text-sm"><?php echo $validation_errors['site_manager'] ?? ''; ?></span>
                         </div>
                     </div>
-
                     <div class="border-t pt-6">
-                        <h3 class="text-lg font-semibold text-gray-800">Parameter Keuangan</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Parameter Keuangan Proyek</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
                             <div>
                                 <label for="invest_capital" class="block text-sm font-medium text-gray-700">Investasi Modal (USD)</label>
-                                <input type="number" id="invest_capital" name="invest_capital" value="<?php echo $invest_capital; ?>" placeholder="Contoh: 5000000" class="mt-1 w-full px-4 py-3 bg-gray-50 border <?php echo (!empty($invest_capital_err)) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <span class="text-red-500 text-sm mt-1"><?php echo $invest_capital_err; ?></span>
+                                <input type="number" name="invest_capital" class="mt-1 w-full p-3 bg-gray-50 border rounded-lg <?php echo !empty($validation_errors['invest_capital']) ? 'border-red-500' : 'border-gray-300'; ?>" value="<?php echo htmlspecialchars($invest_capital); ?>">
+                                <span class="text-red-500 text-sm"><?php echo $validation_errors['invest_capital'] ?? ''; ?></span>
                             </div>
                             <div>
                                 <label for="invest_noncapital" class="block text-sm font-medium text-gray-700">Investasi Non-Modal (USD)</label>
-                                <input type="number" id="invest_noncapital" name="invest_noncapital" value="<?php echo $invest_noncapital; ?>" placeholder="Contoh: 1500000" class="mt-1 w-full px-4 py-3 bg-gray-50 border <?php echo (!empty($invest_noncapital_err)) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <span class="text-red-500 text-sm mt-1"><?php echo $invest_noncapital_err; ?></span>
+                                <input type="number" name="invest_noncapital" class="mt-1 w-full p-3 bg-gray-50 border rounded-lg <?php echo !empty($validation_errors['invest_noncapital']) ? 'border-red-500' : 'border-gray-300'; ?>" value="<?php echo htmlspecialchars($invest_noncapital); ?>">
+                                <span class="text-red-500 text-sm"><?php echo $validation_errors['invest_noncapital'] ?? ''; ?></span>
                             </div>
                             <div>
                                 <label for="tax" class="block text-sm font-medium text-gray-700">Pajak (%)</label>
-                                <input type="number" id="tax" name="tax" step="any" value="<?php echo $tax; ?>" placeholder="Contoh: 20" class="mt-1 w-full px-4 py-3 bg-gray-50 border <?php echo (!empty($tax_err)) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <span class="text-red-500 text-sm mt-1"><?php echo $tax_err; ?></span>
+                                <input type="number" step="any" name="tax" class="mt-1 w-full p-3 bg-gray-50 border rounded-lg <?php echo !empty($validation_errors['tax']) ? 'border-red-500' : 'border-gray-300'; ?>" value="<?php echo htmlspecialchars($tax); ?>">
+                                <span class="text-red-500 text-sm"><?php echo $validation_errors['tax'] ?? ''; ?></span>
                             </div>
                             <div>
-                                <label for="depreciation" class="block text-sm font-medium text-gray-700">Depresiasi (%)</label>
-                                <input type="number" id="depreciation" name="depreciation" step="any" value="<?php echo $depreciation; ?>" placeholder="Contoh: 10" class="mt-1 w-full px-4 py-3 bg-gray-50 border <?php echo (!empty($depreciation_err)) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <span class="text-red-500 text-sm mt-1"><?php echo $depreciation_err; ?></span>
+                                <label for="investment_years" class="block text-sm font-medium text-gray-700">Jumlah Tahun Investasi</label>
+                                <input type="number" name="investment_years" class="mt-1 w-full p-3 bg-gray-50 border rounded-lg <?php echo !empty($validation_errors['investment_years']) ? 'border-red-500' : 'border-gray-300'; ?>" placeholder="Contoh: 10" value="<?php echo htmlspecialchars($investment_years_input); ?>">
+                                <span class="text-red-500 text-sm"><?php echo $validation_errors['investment_years'] ?? ''; ?></span>
                             </div>
                         </div>
                     </div>
-
                     <div class="flex justify-end pt-6">
-                        <a href="home.php" class="bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-lg hover:bg-gray-300 mr-4 transition">Batal</a>
-                        <button type="submit" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">Simpan Proyek</button>
+                        <a href="home.php" class="bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-lg mr-4">Batal</a>
+                        <button type="submit" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg">Simpan Proyek</button>
                     </div>
                 </form>
             </div>
         </main>
     </div>
-
 </body>
 
 </html>

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Waktu pembuatan: 12 Jun 2025 pada 10.50
+-- Waktu pembuatan: 12 Jun 2025 pada 16.38
 -- Versi server: 8.0.30
 -- Versi PHP: 8.1.10
 
@@ -30,7 +30,7 @@ SET time_zone = "+00:00";
 CREATE TABLE `cashflows` (
   `id` bigint UNSIGNED NOT NULL,
   `year` int NOT NULL,
-  `production` int NOT NULL,
+  `production` int DEFAULT NULL,
   `income` int NOT NULL,
   `opex` int NOT NULL,
   `taxable_income` int NOT NULL,
@@ -39,6 +39,20 @@ CREATE TABLE `cashflows` (
   `created_at` timestamp NOT NULL,
   `updated_at` timestamp NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data untuk tabel `cashflows`
+--
+
+INSERT INTO `cashflows` (`id`, `year`, `production`, `income`, `opex`, `taxable_income`, `net_cashflow`, `project_id`, `created_at`, `updated_at`) VALUES
+(4, 2025, 1000, 150000, 100000, 1000, 250000, 1, '2025-06-12 12:53:26', '2025-06-12 12:53:26'),
+(10, 0, 0, 0, 0, 0, -15, 7, '2025-06-12 14:39:48', '2025-06-12 14:39:48'),
+(11, 1, 10, 15, 10, 4, 4, 7, '2025-06-12 14:40:11', '2025-06-12 14:40:11'),
+(12, 2, 10, 15, 10, 4, 4, 7, '2025-06-12 14:40:55', '2025-06-12 14:40:55'),
+(13, 3, 10, 20, 10, 9, 8, 7, '2025-06-12 14:41:31', '2025-06-12 14:41:31'),
+(14, 0, 0, 0, 0, 0, -1500000, 8, '2025-06-12 14:53:06', '2025-06-12 14:53:06'),
+(15, 1, 100, 400000, 150000, 150000, 120000, 8, '2025-06-12 14:53:46', '2025-06-12 14:53:46'),
+(16, 2, 100, 200, 25000, -31300, -24800, 8, '2025-06-12 15:41:05', '2025-06-12 15:41:05');
 
 -- --------------------------------------------------------
 
@@ -59,6 +73,16 @@ CREATE TABLE `projects` (
   `updated_at` timestamp NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+--
+-- Dumping data untuk tabel `projects`
+--
+
+INSERT INTO `projects` (`id`, `name`, `site_manager`, `invest_capital`, `invest_noncapital`, `tax`, `depreciation`, `user_id`, `created_at`, `updated_at`) VALUES
+(1, 'Sumur Condongcatur', 'Evo', 5000000, 1500000, 20, 10, 4, '2025-06-12 12:00:35', '2025-06-12 12:00:35'),
+(4, 'Sumur Condongcatur', 'Agus', 690000000, 180000000, 20, 12, 4, '2025-06-12 13:07:52', '2025-06-12 13:07:52'),
+(7, 'Sumur A', 'Sutoyo', 10, 5, 10, 5, 4, '2025-06-12 14:39:48', '2025-06-12 14:39:48'),
+(8, 'proyek uji coba', 'arip', 1000000, 500000, 20, 5, 4, '2025-06-12 14:53:06', '2025-06-12 16:30:32');
+
 -- --------------------------------------------------------
 
 --
@@ -75,6 +99,14 @@ CREATE TABLE `users` (
   `created_at` timestamp NOT NULL,
   `updated_at` timestamp NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data untuk tabel `users`
+--
+
+INSERT INTO `users` (`id`, `name`, `email`, `email_verified_at`, `password`, `remember_token`, `created_at`, `updated_at`) VALUES
+(4, 'Arif Priyandika', 'arifpriyandika04@gmail.com', NULL, '$2y$10$SpcPXPV1t7zB5S1y1TmPJuuLok499kvAj1bYKXMb1q5CWHxruDHPO', NULL, '2025-06-12 11:48:07', '2025-06-12 11:48:07'),
+(5, 'panry', 'panry@gmail.com', NULL, '$2y$10$0pmewIEEtGAV0g4Yb2zZU.AtAGyZbHo0S4AQx2qPvh1djFLuoJ1Pu', NULL, '2025-06-12 12:18:29', '2025-06-12 12:18:29');
 
 --
 -- Indexes for dumped tables
@@ -108,19 +140,19 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT untuk tabel `cashflows`
 --
 ALTER TABLE `cashflows`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT untuk tabel `projects`
 --
 ALTER TABLE `projects`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
